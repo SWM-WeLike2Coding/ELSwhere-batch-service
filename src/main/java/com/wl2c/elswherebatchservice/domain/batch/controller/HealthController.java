@@ -1,4 +1,4 @@
-package com.wl2c.elswherebatchservice.batch.controller;
+package com.wl2c.elswherebatchservice.domain.batch.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;

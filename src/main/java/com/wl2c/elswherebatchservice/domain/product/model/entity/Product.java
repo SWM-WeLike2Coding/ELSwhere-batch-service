@@ -34,7 +34,6 @@ public class Product extends BaseEntity {
     @NotNull
     private String equities;
 
-    @NotNull
     private int equityCount;
 
     private Integer knockIn;
@@ -94,7 +93,7 @@ public class Product extends BaseEntity {
     private Product (@NonNull String publisher,
                      @NonNull String name,
                      @NonNull String equities,
-                     @NonNull int equityCount,
+                     int equityCount,
                      @NonNull LocalDate issuedDate,
                      @NonNull LocalDate maturityDate,
                      @NonNull BigDecimal yieldIfConditionsMet,

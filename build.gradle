@@ -47,6 +47,9 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 
+    // selenium
+    implementation 'org.seleniumhq.selenium:selenium-java:4.1.2'
+
     // test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }

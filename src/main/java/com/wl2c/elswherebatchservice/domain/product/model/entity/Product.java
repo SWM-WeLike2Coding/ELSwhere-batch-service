@@ -134,11 +134,11 @@ public class Product extends BaseEntity {
         this.productState = productState;
     }
 
-    public void changeProductState() {
-        if (productState.equals(ProductState.ACTIVE)) {
-            this.productState = ProductState.INACTIVE;
-        } else {
-            this.productState = ProductState.ACTIVE;
-        }
+    public void setInActiveProductState() {
+        this.productState = ProductState.INACTIVE;
+    }
+
+    public void setActiveProductState() {
+        this.productState = ProductState.ACTIVE;
     }
 }

@@ -62,14 +62,11 @@ jobs:
         echo $PROPERTIES | base64 --decode > application.yml
       shell: bash
 
-    - name: Gradle Init
-      run: gradle init
-
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@417ae3ccd767c252f5661f1ace9f835f9654f2b5 # v3.1.0
-      with:
-        arguments: build
-        gradle-version: '8.5'
+
+    - name: Build with Gradle Wrapper
+      run: ./gradlew build
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1

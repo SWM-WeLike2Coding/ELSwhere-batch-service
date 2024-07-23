@@ -44,14 +44,14 @@ public class ParsingProspectusService {
     }
 
     // 최초기준가격평가일(최초기준가격 결정일)
-    public LocalDate findInitialBasePriceEvaluationDate(String publisher, String targetProductSession, Document document) throws IOException {
+    public LocalDate findInitialBasePriceEvaluationDate(String issuer, String targetProductSession, Document document) throws IOException {
         if (targetProductSession != null && document != null) {
 
             // 투자 설명서에서 해당 회차 상품이 몇 번째인지
             int number = findLocationOfProduct(targetProductSession, document);
 
             // 투자 설명서에서 모든 최초기준가격평가일 파싱
-            List<String> initialBasePriceEvaluationDateList = findInitialBasePriceEvaluationDateList(publisher, document);
+            List<String> initialBasePriceEvaluationDateList = findInitialBasePriceEvaluationDateList(issuer, document);
 
             // 삼성증권 대비 코드를 아직 작성하지 않은 관계로
             if (initialBasePriceEvaluationDateList == null) {
@@ -257,7 +257,7 @@ public class ParsingProspectusService {
         return result;
     }
 
-    public List<String> findInitialBasePriceEvaluationDateList(String publisher, Document doc) {
+    public List<String> findInitialBasePriceEvaluationDateList(String issuer, Document doc) {
 
         List<String> result = new ArrayList<>();
 
@@ -266,7 +266,7 @@ public class ParsingProspectusService {
         Pattern pattern = Pattern.compile(datePattern);
 
         // 삼성증권 - 최초기준가격 결정일 (예정)
-        if (publisher.equals("삼성증권")) {
+        if (issuer.equals("삼성증권")) {
 
             Elements tables = doc.select("table");
 

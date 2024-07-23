@@ -26,7 +26,7 @@ public class Product extends BaseEntity {
     private Long id;
 
     @NotNull
-    private String publisher;
+    private String issuer;
 
     @NotNull
     private String name;
@@ -90,7 +90,7 @@ public class Product extends BaseEntity {
     private List<ProductTickerSymbol> productTickerSymbols = new ArrayList<>();
 
     @Builder
-    private Product (@NonNull String publisher,
+    private Product (@NonNull String issuer,
                      @NonNull String name,
                      @NonNull String equities,
                      int equityCount,
@@ -111,7 +111,7 @@ public class Product extends BaseEntity {
                      LocalDate initialBasePriceEvaluationDate,
                      ProductType productType,
                      ProductState productState) {
-        this.publisher = publisher;
+        this.issuer = issuer;
         this.name = name;
         this.equities = equities;
         this.equityCount = equityCount;

@@ -54,7 +54,7 @@ public class ParsingExcelService {
     private final ParsingProspectusService parsingProspectusService;
 
     // 발행사 리스트
-    private final List<String> publishers = List.of(
+    private final List<String> issuers = List.of(
             "신한", "KB", "kb", "한화", "삼성", "미래에셋", "유안타", "키움",
                 "교보", "NH", "SK", "대신", "메리츠", "하나",
                 "현대차", "한국투자", "트루", "대신", "신영", "유진",
@@ -142,14 +142,14 @@ public class ParsingExcelService {
                 // 이미 존재하면 패스
                 if (productRepository.findProductByName(dCell.getStringCellValue()).isPresent())    continue;
 
-                if (findProspectusLink(findProductSession(dCell.getStringCellValue()), findPublisher(dCell.getStringCellValue())) != null) {
+                if (findProspectusLink(findProductSession(dCell.getStringCellValue()), findIssuer(dCell.getStringCellValue())) != null) {
 
-                    Document doc = parsingProspectusService.fetchDocument(findProspectusLink(findProductSession(dCell.getStringCellValue()), findPublisher(dCell.getStringCellValue())));
+                    Document doc = parsingProspectusService.fetchDocument(findProspectusLink(findProductSession(dCell.getStringCellValue()), findIssuer(dCell.getStringCellValue())));
 
                     parsingProspectusService.findVolatilitiesList(doc);
                     log.info(r+1 + " - 변동성:" + parsingProspectusService.findVolatilities(findProductSession(dCell.getStringCellValue()),doc));
                     Product product = Product.builder()
-                            .publisher(bCell.getStringCellValue())
+                            .issuer(bCell.getStringCellValue())
                             .name(dCell.getStringCellValue())
                             .equities(eCell.getStringCellValue().replace("<br/>", " / "))
                             .equityCount(eCell.getStringCellValue().split("<br/>").length)
@@ -164,7 +164,7 @@ public class ParsingExcelService {
                             .link(nCell.getStringCellValue())
                             .remarks(pCell.getStringCellValue())
                             .knockIn(findKnockIn(lCell.getStringCellValue()))
-                            .summaryInvestmentProspectusLink(findProspectusLink(findProductSession(dCell.getStringCellValue()), findPublisher(dCell.getStringCellValue())))
+                            .summaryInvestmentProspectusLink(findProspectusLink(findProductSession(dCell.getStringCellValue()), findIssuer(dCell.getStringCellValue())))
                             .earlyRepaymentEvaluationDates(Optional.ofNullable(
                                             parsingProspectusService.findEarlyRepaymentEvaluationDates(
                                                     findProductSession(dCell.getStringCellValue()),
@@ -253,7 +253,7 @@ public class ParsingExcelService {
                     }
                 } else {
                     Product product = Product.builder()
-                            .publisher(bCell.getStringCellValue())
+                            .issuer(bCell.getStringCellValue())
                             .name(dCell.getStringCellValue())
                             .equities(eCell.getStringCellValue().replace("<br/>", " / "))
                             .equityCount(eCell.getStringCellValue().split("<br/>").length)
@@ -339,10 +339,10 @@ public class ParsingExcelService {
         return number;
     }
 
-    private String findPublisher(String name) {
+    private String findIssuer(String name) {
 
         // 단어가 포함되어 있는지 확인하고, 해당 단어를 반환
-        Optional<String> result = publishers.stream()
+        Optional<String> result = issuers.stream()
                 .filter(name::contains)
                 .findFirst();
 
@@ -441,8 +441,8 @@ public class ParsingExcelService {
         return null;
     }
 
-    private ProductType findProductType(String publisher, String str) {
-        return switch (publisher) {
+    private ProductType findProductType(String issuer, String str) {
+        return switch (issuer) {
             case "NH투자증권" -> findProductTypeForNH(str);
             case "미래에셋증권" -> findProductTypeForMiraeAsset(str);
             case "하나증권" -> findProductTypeForHana(str);
@@ -548,7 +548,7 @@ public class ParsingExcelService {
         return ProductType.ETC;
     }
 
-    private String findProspectusLink(String session, String publisher) {
+    private String findProspectusLink(String session, String issuer) {
 
         String prospectusLink = null;
 
@@ -560,10 +560,10 @@ public class ParsingExcelService {
                 // JSON 파일을 JsonNode 배열로 변환
                 JsonNode jsonArray = objectMapper.readTree(new File(krxPath));
 
-                // "ISU_NM" 키가 session 문자열을 포함하고 publisher 문자열도 포함하는 항목을 찾기
+                // "ISU_NM" 키가 session 문자열을 포함하고 issuer 문자열도 포함하는 항목을 찾기
                 for (JsonNode jsonNode : jsonArray) {
                     String isuNm = jsonNode.get("ISU_NM").asText();
-                    if (isuNm.contains(session) && isuNm.contains(publisher)) {
+                    if (isuNm.contains(session) && isuNm.contains(issuer)) {
                         prospectusLink = jsonNode.get("ISU_DISCLS_URL").asText();
                         break;
                     }

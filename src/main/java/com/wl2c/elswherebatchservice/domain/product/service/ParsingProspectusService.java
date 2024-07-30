@@ -1,5 +1,6 @@
 package com.wl2c.elswherebatchservice.domain.product.service;
 
+import com.wl2c.elswherebatchservice.domain.product.model.MaturityEvaluationDateType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
@@ -53,8 +54,7 @@ public class ParsingProspectusService {
             // 투자 설명서에서 모든 최초기준가격평가일 파싱
             List<String> initialBasePriceEvaluationDateList = findInitialBasePriceEvaluationDateList(issuer, document);
 
-            // 삼성증권 대비 코드를 아직 작성하지 않은 관계로
-            if (initialBasePriceEvaluationDateList == null) {
+            if (initialBasePriceEvaluationDateList == null || initialBasePriceEvaluationDateList.isEmpty()) {
                 return null;
             }
 
@@ -63,6 +63,49 @@ public class ParsingProspectusService {
 
         } else {
             return null;
+        }
+    }
+
+    // 만기평가일(만기상환평가일)
+    public LocalDate findMaturityEvaluationDate(String issuer, String targetProductSession, Document document) throws IOException {
+        if (targetProductSession != null && document != null) {
+
+            // 투자 설명서에서 해당 회차 상품이 몇 번째인지
+            int number = findLocationOfProduct(targetProductSession, document);
+
+            // 투자 설명서에서 모든 만기평가일 파싱
+            List<String> MaturityEvaluationDateList = findMaturityEvaluationDateList(issuer, document);
+
+            if (MaturityEvaluationDateList == null || MaturityEvaluationDateList.isEmpty()) {
+                return null;
+            }
+
+            // 해당 회차 상품의 만기평가일
+            return convertToLocalDate(MaturityEvaluationDateList.get(number - 1));
+
+        } else {
+            return null;
+        }
+    }
+
+    // 만기평가일(만기상환평가일) 개수
+    public MaturityEvaluationDateType findMaturityEvaluationDateCount(String issuer, String targetProductSession, Document document) throws IOException {
+        if (targetProductSession != null && document != null) {
+
+            // 투자 설명서에서 해당 회차 상품이 몇 번째인지
+            int number = findLocationOfProduct(targetProductSession, document);
+
+            // 투자 설명서에서 모든 만기평가일 파싱
+            List<MaturityEvaluationDateType> MaturityEvaluationDateCountList = findMaturityEvaluationDateCountList(issuer, document);
+
+            if (MaturityEvaluationDateCountList == null || MaturityEvaluationDateCountList.isEmpty()) {
+                return MaturityEvaluationDateType.UNKNOWN;
+            }
+
+            // 해당 회차 상품의 만기평가일 개수 확인
+            return MaturityEvaluationDateCountList.get(number - 1);
+        } else {
+            return MaturityEvaluationDateType.UNKNOWN;
         }
     }
 
@@ -261,7 +304,6 @@ public class ParsingProspectusService {
 
         List<String> result = new ArrayList<>();
 
-        // Define the date pattern
         String datePattern = "\\d{4}년 \\d{2}월 \\d{2}일";
         Pattern pattern = Pattern.compile(datePattern);
 
@@ -331,6 +373,272 @@ public class ParsingProspectusService {
                     }
                 }
             }
+        }
+
+        return result;
+    }
+
+    // 보통 각 상품당 만기 평가일은 하나 이나, 발행사에서 교란일 등으로 인해 예상 평가일을 여러 날짜로 표기한 경우
+    // 그중에 최초 만기 평가일을 가져오는 것으로 함
+    public List<String> findMaturityEvaluationDateList(String issuer, Document doc) {
+        List<String> result = new ArrayList<>();
+
+        String datePattern = "\\d{4}년 \\d{2}월 \\d{2}일";
+        Pattern pattern = Pattern.compile(datePattern);
+
+        // 삼성증권 - 만기평가일 (예정)
+        if (issuer.equals("삼성증권")) {
+
+            Elements rows = doc.select("tr");
+
+            for (Element row : rows) {
+                Elements tds = row.select("td");
+                for (Element td : tds) {
+                    if (td.text().contains("만기평가일 (예정)")) {
+                        Element dateTd = tds.get(tds.indexOf(td) + 1); // 같은 tr의 다음 td
+                        String dates = dateTd.text();
+                        Matcher matcher = pattern.matcher(dates);
+                        if (matcher.find()) {
+                            // 날짜 문자열을 출력
+                            result.add(matcher.group());
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        // 교보증권 - 만기평가일
+        if (issuer.equals("교보증권")) {
+
+            Elements tables = doc.select("table");
+
+            for (Element table : tables) {
+                // <table> 태그 내부의 모든 <td> 태그를 선택
+                Elements tds = table.select("td");
+
+                // "만기평가일"이 포함된 <td>를 찾기
+                boolean containsTargetString = tds.stream()
+                        .anyMatch(td -> td.text().contains("만기평가일"));
+
+                if (containsTargetString) {
+                    // 각 <td>의 텍스트를 검사하여 날짜 패턴과 일치하는 문자열을 찾기
+                    for (Element td : tds) {
+                        Matcher matcher = pattern.matcher(td.text());
+                        if (matcher.find()) {
+                            // 날짜 문자열을 출력
+                            result.add(matcher.group());
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        Elements pTags = doc.select("p");
+
+        Elements tables = doc.select("table");
+
+        // p tag
+        for (Element pTag : pTags) {
+            if (pTag.text().contains("만기평가일 :") || pTag.text().contains("만기상환평가일 :")) {
+
+                String pText = pTag.text();
+
+                Matcher matcher = pattern.matcher(pText);
+                if (matcher.find()) {
+                    String date = matcher.group();
+                    result.add(date);
+                }
+
+                Element table = pTag.nextElementSibling();
+                if (table.tagName().equals("table")) {
+                    Elements tds = table.select("td");
+                    for (Element td : tds) {
+                        matcher = pattern.matcher(td.text());
+                        if (matcher.find()) {
+                            result.add(matcher.group());
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // table
+        for (Element table : tables) {
+            // <table> 태그 내부의 모든 <td> 태그를 선택
+            Elements tds = table.select("td");
+
+            // "만기상환평가일 :"이 포함된 <td>를 찾기
+            boolean containsTargetString = tds.stream()
+                    .anyMatch(td -> td.text().contains("만기상환평가일 :"));
+
+            if (containsTargetString) {
+                // 각 <td>의 텍스트를 검사하여 날짜 패턴과 일치하는 문자열을 찾기
+                for (Element td : tds) {
+                    Matcher matcher = pattern.matcher(td.text());
+                    if (matcher.find()) {
+                        // 날짜 문자열을 출력
+                        result.add(matcher.group());
+                        break;
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
+    public List<MaturityEvaluationDateType> findMaturityEvaluationDateCountList(String issuer, Document doc) {
+        List<MaturityEvaluationDateType> result = new ArrayList<>();
+
+        String datePattern = "\\d{4}년 \\d{2}월 \\d{2}일";
+        Pattern pattern = Pattern.compile(datePattern);
+
+        // 삼성증권 - 만기평가일 (예정)
+        if (issuer.equals("삼성증권")) {
+            Elements rows = doc.select("tr");
+
+            int count;
+            for (Element row : rows) {
+                Elements tds = row.select("td");
+                for (Element td : tds) {
+                    if (td.text().contains("만기평가일 (예정)")) {
+                        count = 0;
+
+                        Element dateTd = tds.get(tds.indexOf(td) + 1); // 같은 tr의 다음 td
+                        String dates = dateTd.text();
+                        Matcher matcher = pattern.matcher(dates);
+                        while (matcher.find()) {
+                            count++;
+                        }
+
+                        if (count > 1)  result.add(MaturityEvaluationDateType.MULTIPLE);
+                        else if (count == 1) result.add(MaturityEvaluationDateType.SINGLE);
+                        else result.add(MaturityEvaluationDateType.UNKNOWN);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        // 교보증권 - 만기평가일
+        if (issuer.equals("교보증권")) {
+
+            Elements tables = doc.select("table");
+
+            int count;
+            for (Element table : tables) {
+                // <table> 태그 내부의 모든 <td> 태그를 선택
+                Elements tds = table.select("td");
+
+                // "만기평가일"이 포함된 <td>를 찾기
+                boolean containsTargetString = tds.stream()
+                        .anyMatch(td -> td.text().contains("만기평가일"));
+
+                if (containsTargetString) {
+                    // 각 <td>의 텍스트를 검사하여 날짜 패턴과 일치하는 문자열을 찾기
+                    for (Element td : tds) {
+                        count = 0;
+                        Matcher matcher = pattern.matcher(td.text());
+                        while (matcher.find()) {
+                            count++;
+                        }
+
+                        if (count > 1)  result.add(MaturityEvaluationDateType.MULTIPLE);
+                        else if (count == 1) result.add(MaturityEvaluationDateType.SINGLE);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        // 키움증권 - 만기평가일
+        if (issuer.equals("키움증권")) {
+            Elements pTags = doc.select("p");
+
+            int count;
+            for (Element pTag : pTags) {
+
+                if (pTag.text().contains("만기평가일 :")) {
+
+                    String pText = pTag.text();
+
+                    count = 0;
+                    Matcher matcher = pattern.matcher(pText);
+                    while (matcher.find()) {
+                        count++;
+                    }
+
+                    if (count > 1)  result.add(MaturityEvaluationDateType.MULTIPLE);
+                    else if (count == 1) result.add(MaturityEvaluationDateType.SINGLE);
+                }
+            }
+            return result;
+        }
+
+        Elements pTags = doc.select("p");
+
+        Elements tables = doc.select("table");
+
+        // p tag
+        int count;
+        for (Element pTag : pTags) {
+            if (pTag.text().contains("만기평가일 :") || pTag.text().contains("만기상환평가일 :")) {
+
+                String pText = pTag.text();
+
+                count = 0;
+                Matcher matcher = pattern.matcher(pText);
+                if (matcher.find()) {
+                    count++;
+                }
+
+                Element table = pTag.nextElementSibling();
+                if (table.tagName().equals("table")) {
+                    Elements tds = table.select("td");
+                    for (Element td : tds) {
+                        matcher = pattern.matcher(td.text());
+                        while (matcher.find()) {
+                            count++;
+                        }
+                    }
+                }
+
+                if (count > 1)  result.add(MaturityEvaluationDateType.MULTIPLE);
+                else if (count == 1) result.add(MaturityEvaluationDateType.SINGLE);
+            }
+        }
+
+        // table
+        for (Element table : tables) {
+            count = 0;
+            // <table> 태그 내부의 모든 <td> 태그를 선택
+            Elements tds = table.select("td");
+
+            // "만기상환평가일 :"이 포함된 <td>를 찾기
+            boolean containsTargetString = tds.stream()
+                    .anyMatch(td -> td.text().contains("만기상환평가일 :"));
+
+            if (containsTargetString) {
+                // 각 <td>의 텍스트를 검사하여 날짜 패턴과 일치하는 문자열을 찾기
+                for (Element td : tds) {
+                    Matcher matcher = pattern.matcher(td.text());
+                    if (matcher.find()) {
+                        count++;
+                    }
+                }
+            }
+
+            if (count > 1)  result.add(MaturityEvaluationDateType.MULTIPLE);
+            else if (count == 1) result.add(MaturityEvaluationDateType.SINGLE);
         }
 
         return result;

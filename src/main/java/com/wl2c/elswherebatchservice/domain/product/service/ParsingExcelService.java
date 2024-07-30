@@ -2,6 +2,7 @@ package com.wl2c.elswherebatchservice.domain.product.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wl2c.elswherebatchservice.domain.product.model.MaturityEvaluationDateType;
 import com.wl2c.elswherebatchservice.domain.product.model.ProductState;
 import com.wl2c.elswherebatchservice.domain.product.model.ProductType;
 import com.wl2c.elswherebatchservice.domain.product.model.entity.*;
@@ -154,6 +155,8 @@ public class ParsingExcelService {
                             .equities(eCell.getStringCellValue().replace("<br/>", " / "))
                             .equityCount(eCell.getStringCellValue().split("<br/>").length)
                             .issuedDate(convertToLocalDate(fCell.getStringCellValue()))
+                            .maturityEvaluationDate(parsingProspectusService.findMaturityEvaluationDate(bCell.getStringCellValue(), findProductSession(dCell.getStringCellValue()), doc))
+                            .maturityEvaluationDateType(parsingProspectusService.findMaturityEvaluationDateCount(bCell.getStringCellValue(), findProductSession(dCell.getStringCellValue()), doc))
                             .maturityDate(convertToLocalDate(gCell.getStringCellValue()))
                             .yieldIfConditionsMet(BigDecimal.valueOf(hCell.getNumericCellValue()))
                             .maximumLossRate(BigDecimal.valueOf(iCell.getNumericCellValue()))
@@ -258,6 +261,7 @@ public class ParsingExcelService {
                             .equities(eCell.getStringCellValue().replace("<br/>", " / "))
                             .equityCount(eCell.getStringCellValue().split("<br/>").length)
                             .issuedDate(convertToLocalDate(fCell.getStringCellValue()))
+                            .maturityEvaluationDateType(MaturityEvaluationDateType.UNKNOWN)
                             .maturityDate(convertToLocalDate(gCell.getStringCellValue()))
                             .yieldIfConditionsMet(BigDecimal.valueOf(hCell.getNumericCellValue()))
                             .maximumLossRate(BigDecimal.valueOf(iCell.getNumericCellValue()))

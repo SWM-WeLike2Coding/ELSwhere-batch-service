@@ -1,5 +1,6 @@
 package com.wl2c.elswherebatchservice.domain.product.model.entity;
 
+import com.wl2c.elswherebatchservice.domain.product.model.MaturityEvaluationDateType;
 import com.wl2c.elswherebatchservice.domain.product.model.ProductState;
 import com.wl2c.elswherebatchservice.domain.product.model.ProductType;
 import com.wl2c.elswherebatchservice.global.base.BaseEntity;
@@ -40,6 +41,13 @@ public class Product extends BaseEntity {
 
     @NotNull
     private LocalDate issuedDate;
+
+    private LocalDate maturityEvaluationDate;
+
+    @NotNull
+    @ColumnDefault("'UNKNOWN'")
+    @Enumerated(STRING)
+    private MaturityEvaluationDateType maturityEvaluationDateType;
 
     @NotNull
     private LocalDate maturityDate;
@@ -95,6 +103,8 @@ public class Product extends BaseEntity {
                      @NonNull String equities,
                      int equityCount,
                      @NonNull LocalDate issuedDate,
+                     LocalDate maturityEvaluationDate,
+                     @NonNull MaturityEvaluationDateType maturityEvaluationDateType,
                      @NonNull LocalDate maturityDate,
                      @NonNull BigDecimal yieldIfConditionsMet,
                      @NonNull BigDecimal maximumLossRate,
@@ -117,6 +127,8 @@ public class Product extends BaseEntity {
         this.equityCount = equityCount;
         this.knockIn = knockIn;
         this.issuedDate = issuedDate;
+        this.maturityEvaluationDate = maturityEvaluationDate;
+        this.maturityEvaluationDateType = maturityEvaluationDateType;
         this.maturityDate = maturityDate;
         this.yieldIfConditionsMet = yieldIfConditionsMet;
         this.maximumLossRate = maximumLossRate;

@@ -5,11 +5,11 @@
 # This workflow will build a Java project with Gradle and cache/restore any dependencies to improve the workflow execution time
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-gradle
 
-name: Dev_CD
+name: Prod_CD
 
 on:
   push:
-    branches: [ "dev_deploy" ]
+    branches: [ "main" ]
 
 permissions:
   contents: read
@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'SWM-WeLike2Coding/ELSwhere-batch-service'
     needs: check_repo
-    environment: dev
+    environment: prod
     steps:
     - uses: actions/checkout@v4
 
@@ -82,14 +82,14 @@ jobs:
     - name: Docker build
       env:
         AWS_ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        AWS_ECR_REPOSITORY: ${{ secrets.AWS_ECR_DEV_BATCH_SERVICE_REPOSITORY }}
+        AWS_ECR_REPOSITORY: ${{ secrets.AWS_ECR_PROD_BATCH_SERVICE_REPOSITORY }}
       run: |
         docker build -t $AWS_ECR_REGISTRY/$AWS_ECR_REPOSITORY:${GITHUB_SHA::7} -t $AWS_ECR_REGISTRY/$AWS_ECR_REPOSITORY:latest .
       
     - name: Docker push
       env:
         AWS_ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        AWS_ECR_REPOSITORY: ${{ secrets.AWS_ECR_DEV_BATCH_SERVICE_REPOSITORY }}
+        AWS_ECR_REPOSITORY: ${{ secrets.AWS_ECR_PROD_BATCH_SERVICE_REPOSITORY }}
       run: |
         docker push $AWS_ECR_REGISTRY/$AWS_ECR_REPOSITORY:${GITHUB_SHA::7}
         docker push $AWS_ECR_REGISTRY/$AWS_ECR_REPOSITORY:latest
@@ -98,14 +98,14 @@ jobs:
       uses: appleboy/ssh-action@master
       env:
         AWS_ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        AWS_ECR_REPOSITORY: ${{ secrets.AWS_ECR_DEV_BATCH_SERVICE_REPOSITORY }}
+        AWS_ECR_REPOSITORY: ${{ secrets.AWS_ECR_PROD_BATCH_SERVICE_REPOSITORY }}
       with:
-        host: ${{ secrets.SERVER_HOST_DEV }}
+        host: ${{ secrets.SERVER_HOST_PROD }}
         username: ubuntu
-        key: ${{ secrets.PRIVATE_SUB_PRIVATE_PEM_KEY_DEV }}
-        proxy_host: ${{ secrets.BASTION_SERVER_HOST_DEV }}
+        key: ${{ secrets.PRIVATE_SUB_PRIVATE_PEM_KEY_PROD }}
+        proxy_host: ${{ secrets.BASTION_SERVER_HOST_PROD }}
         proxy_username: ubuntu
-        proxy_key: ${{ secrets.PUBLIC_SUB_PRIVATE_PEM_KEY_DEV }}
+        proxy_key: ${{ secrets.PUBLIC_SUB_PRIVATE_PEM_KEY_PROD }}
         envs: GITHUB_SHA,AWS_ECR_REGISTRY,AWS_ECR_REPOSITORY
         script: |
           ./deploy.sh $AWS_ECR_REGISTRY $AWS_ECR_REPOSITORY ${GITHUB_SHA::7}

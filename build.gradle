@@ -31,7 +31,11 @@ dependencies {
     // spring boot
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // db
+    runtimeOnly 'com.mysql:mysql-connector-j'
 
     // devtools
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
@@ -42,6 +46,16 @@ dependencies {
     // lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+
+    // selenium
+    implementation 'org.seleniumhq.selenium:selenium-java:4.1.2'
+
+    // jsoup
+    implementation 'org.jsoup:jsoup:1.17.2'
+
+    // Excel
+    implementation group: 'org.apache.poi', name: 'poi', version: '5.0.0'
+    implementation group: 'org.apache.poi', name: 'poi-ooxml', version: '5.0.0'
 
     // test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

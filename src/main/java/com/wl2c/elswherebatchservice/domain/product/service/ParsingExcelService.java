@@ -339,7 +339,6 @@ public class ParsingExcelService {
         while (matcher.find()) {
             number = matcher.group();
         }
-
         return number;
     }
 
@@ -567,7 +566,11 @@ public class ParsingExcelService {
                 // "ISU_NM" 키가 session 문자열을 포함하고 issuer 문자열도 포함하는 항목을 찾기
                 for (JsonNode jsonNode : jsonArray) {
                     String isuNm = jsonNode.get("ISU_NM").asText();
-                    if (isuNm.contains(session) && isuNm.contains(issuer)) {
+
+                    // issuer가 포함되어 있고 session이 단어 단위로 존재하는지 확인하는 정규식
+                    String regex = "\\b" + session + "\\b";
+
+                    if (isuNm.contains(issuer) && isuNm.matches(".*" + regex + ".*")) {
                         prospectusLink = jsonNode.get("ISU_DISCLS_URL").asText();
                         break;
                     }

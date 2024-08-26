@@ -76,7 +76,7 @@ public class ParsingProspectusService {
             // 투자 설명서에서 모든 만기평가일 파싱
             List<String> MaturityEvaluationDateList = findMaturityEvaluationDateList(issuer, document);
 
-            if (MaturityEvaluationDateList == null || MaturityEvaluationDateList.isEmpty()) {
+            if (MaturityEvaluationDateList == null || MaturityEvaluationDateList.isEmpty() || number < 0) {
                 return null;
             }
 
@@ -98,7 +98,7 @@ public class ParsingProspectusService {
             // 투자 설명서에서 모든 만기평가일 파싱
             List<MaturityEvaluationDateType> MaturityEvaluationDateCountList = findMaturityEvaluationDateCountList(issuer, document);
 
-            if (MaturityEvaluationDateCountList == null || MaturityEvaluationDateCountList.isEmpty()) {
+            if (MaturityEvaluationDateCountList == null || MaturityEvaluationDateCountList.isEmpty() || number < 0) {
                 return MaturityEvaluationDateType.UNKNOWN;
             }
 
@@ -120,7 +120,7 @@ public class ParsingProspectusService {
             List<List<String>> volatilitiesList = findVolatilitiesList(document);
 
             // 해당 회차 상품의 기초자산가격 변동성
-            if (volatilitiesList.size() >= number) {
+            if (volatilitiesList.size() >= number && number > 0) {
                 return volatilitiesList.get(number - 1);
             } else {
                 return null;
@@ -142,7 +142,7 @@ public class ParsingProspectusService {
             List<List<String>> earlyRepaymentEvaluationDateList = findEarlyRepaymentEvaluationDatesList(document);
 
             // 해당 회차 상품의 자동조기상환평가일
-            if (earlyRepaymentEvaluationDateList.size() >= number) {
+            if (earlyRepaymentEvaluationDateList.size() >= number && number > 0) {
                 return earlyRepaymentEvaluationDateList.get(number - 1);
             } else {
                 return null;

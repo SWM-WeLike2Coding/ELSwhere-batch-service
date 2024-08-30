@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wl2c.elswherebatchservice.domain.product.model.MaturityEvaluationDateType;
 import com.wl2c.elswherebatchservice.domain.product.model.ProductState;
 import com.wl2c.elswherebatchservice.domain.product.model.ProductType;
+import com.wl2c.elswherebatchservice.domain.product.model.dto.NewTickerMessage;
 import com.wl2c.elswherebatchservice.domain.product.model.entity.*;
 import com.wl2c.elswherebatchservice.domain.product.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +54,7 @@ public class ParsingExcelService {
     private final EarlyRepaymentEvaluationDatesRepository earlyRepaymentEvaluationDatesRepository;
 
     private final ParsingProspectusService parsingProspectusService;
+    private final NewTickerMessageSender newTickerMessageSender;
 
     // 발행사 리스트
     private final List<String> issuers = List.of(
@@ -199,6 +201,12 @@ public class ParsingExcelService {
                             productTickerSymbolRepository.save(productTickerSymbol);
                         } else {
                             log.warn(dCell + " : " + "기초자산 " +equity + " 에 대해서 Ticker가 존재하지 않음 업데이트 필요");
+                            NewTickerMessage newTickerMessage = NewTickerMessage.builder()
+                                    .productId(product.getId())
+                                    .productName(dCell.getStringCellValue())
+                                    .equity(equity)
+                                    .build();
+                            newTickerMessageSender.send("new-ticker-alert", newTickerMessage);
 
                             Optional<TickerSymbol> checkTickerSymbol = tickerSymbolRepository.findTickerSymbolByEquityNameAndTickerSymbol(equity, "NEED_TO_CHECK");
                             if (checkTickerSymbol.isPresent())    continue;
@@ -290,6 +298,12 @@ public class ParsingExcelService {
                             productTickerSymbolRepository.save(productTickerSymbol);
                         } else {
                             log.warn(dCell + " : " + "기초자산 " +equity + " 에 대해서 Ticker가 존재하지 않음 업데이트 필요");
+                            NewTickerMessage newTickerMessage = NewTickerMessage.builder()
+                                    .productId(product.getId())
+                                    .productName(dCell.getStringCellValue())
+                                    .equity(equity)
+                                    .build();
+                            newTickerMessageSender.send("new-ticker-alert", newTickerMessage);
 
                             Optional<TickerSymbol> checkTickerSymbol = tickerSymbolRepository.findTickerSymbolByEquityNameAndTickerSymbol(equity, "NEED_TO_CHECK");
                             if (checkTickerSymbol.isPresent())    continue;

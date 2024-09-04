@@ -189,7 +189,6 @@ public class ParsingExcelService {
                     String[] equities = eCell.getStringCellValue().split("<br/>");
                     String volatilites = parsingProspectusService.findVolatilities(findProductSession(dCell.getStringCellValue()), doc).get(0);
                     for (String equity : equities) {
-                        // TODO: 존재하지 않는 티커에 대해서, 알림 기능 필요
                         Optional<TickerSymbol> tickerSymbol = tickerSymbolRepository.findTickerSymbolByEquityName(equity);
                         ProductTickerSymbol productTickerSymbol;
 
@@ -287,16 +286,8 @@ public class ParsingExcelService {
                     // 기초자산 db
                     String[] equities = eCell.getStringCellValue().split("<br/>");
                     for (String equity : equities) {
-                        // TODO: 존재하지 않는 티커에 대해서, 알림 기능 필요
                         Optional<TickerSymbol> tickerSymbol = tickerSymbolRepository.findTickerSymbolByEquityName(equity);
-                        ProductTickerSymbol productTickerSymbol;
-                        if (tickerSymbol.isPresent() && !Objects.equals(tickerSymbol.get().getTickerSymbol(), "NEED_TO_CHECK")) {
-                            productTickerSymbol = ProductTickerSymbol.builder()
-                                    .product(product)
-                                    .tickerSymbol(tickerSymbol.get())
-                                    .build();
-                            productTickerSymbolRepository.save(productTickerSymbol);
-                        } else {
+                        if (tickerSymbol.isEmpty()) {
                             log.warn(dCell + " : " + "기초자산 " +equity + " 에 대해서 Ticker가 존재하지 않음 업데이트 필요");
                             NewTickerMessage newTickerMessage = NewTickerMessage.builder()
                                     .productId(product.getId())
@@ -313,14 +304,6 @@ public class ParsingExcelService {
                                     .equityName(equity)
                                     .build();
                             tickerSymbolRepository.save(temporaryTickerSymbol);
-
-                            productTickerSymbol = ProductTickerSymbol.builder()
-                                    .product(product)
-                                    .tickerSymbol(temporaryTickerSymbol)
-                                    .build();
-                            productTickerSymbolRepository.save(productTickerSymbol);
-
-                            product.setInActiveProductState();
                         }
                     }
                 }

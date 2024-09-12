@@ -627,6 +627,8 @@ public class ParsingProspectusService {
                 }
 
                 Element table = pTag.nextElementSibling();
+                if (table == null)   continue;
+
                 if (table.tagName().equals("table")) {
                     Elements tds = table.select("td");
                     for (Element td : tds) {

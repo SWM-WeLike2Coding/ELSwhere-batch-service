@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wl2c.elswherebatchservice.domain.product.model.MaturityEvaluationDateType;
 import com.wl2c.elswherebatchservice.domain.product.model.ProductState;
 import com.wl2c.elswherebatchservice.domain.product.model.ProductType;
+import com.wl2c.elswherebatchservice.domain.product.model.dto.NewIssuerMessage;
 import com.wl2c.elswherebatchservice.domain.product.model.dto.NewTickerMessage;
 import com.wl2c.elswherebatchservice.domain.product.model.entity.*;
 import com.wl2c.elswherebatchservice.domain.product.repository.*;
@@ -55,6 +56,7 @@ public class ParsingExcelService {
 
     private final ParsingProspectusService parsingProspectusService;
     private final NewTickerMessageSender newTickerMessageSender;
+    private final NewIssuerMessageSender newIssuerMessageSender;
 
     // 발행사 리스트
     private final List<String> issuers = List.of(
@@ -144,6 +146,9 @@ public class ParsingExcelService {
 
                 // 이미 존재하면 패스
                 if (productRepository.findProductByName(dCell.getStringCellValue()).isPresent())    continue;
+
+                // 저장되어 있지 않은 새로운 발행회사라면 알림 후, 패스
+                if (!findIssuer(bCell.getStringCellValue(), dCell.getStringCellValue())) continue;
 
                 if (findProspectusLink(findProductSession(dCell.getStringCellValue()), findIssuer(dCell.getStringCellValue())) != null) {
 
@@ -346,7 +351,32 @@ public class ParsingExcelService {
                 .filter(name::contains)
                 .findFirst();
 
-        return result.orElseThrow();
+        if (result.isEmpty()) {
+            return null;
+        }
+
+        return result.get();
+
+    }
+
+    private boolean findIssuer(String issuer, String name) {
+
+        // 단어가 포함되어 있는지 확인하고, 해당 단어를 반환
+        Optional<String> result = issuers.stream()
+                .filter(name::contains)
+                .findFirst();
+
+        if (result.isEmpty()) {
+            NewIssuerMessage newIssuerMessage = NewIssuerMessage.builder()
+                    .productName(name)
+                    .issuer(issuer)
+                    .build();
+            newIssuerMessageSender.send("new-issuer-alert", newIssuerMessage);
+            log.warn(issuer + " : " + "상품명 " + name + " 에 대한 발행회사명 추가 업데이트 필요");
+
+            return false;
+        }
+        return true;
 
     }
 

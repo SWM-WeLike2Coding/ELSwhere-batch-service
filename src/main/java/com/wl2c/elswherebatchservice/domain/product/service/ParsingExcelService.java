@@ -150,9 +150,15 @@ public class ParsingExcelService {
                 // 저장되어 있지 않은 새로운 발행회사라면 알림 후, 패스
                 if (!findIssuer(bCell.getStringCellValue(), dCell.getStringCellValue())) continue;
 
-                if (findProspectusLink(findProductSession(dCell.getStringCellValue()), findIssuer(dCell.getStringCellValue())) != null) {
+                // 투자설명서 링크
+                String prospectusLink = findProspectusLink(findProductSession(dCell.getStringCellValue()), findIssuer(dCell.getStringCellValue()));
 
-                    Document doc = parsingProspectusService.fetchDocument(findProspectusLink(findProductSession(dCell.getStringCellValue()), findIssuer(dCell.getStringCellValue())));
+                if (prospectusLink != null) {
+
+                    Document doc = parsingProspectusService.fetchDocument(prospectusLink);
+
+                    // 정정신고한 투자설명서라면 알림
+                    parsingProspectusService.findIsCorrectionReport(dCell.getStringCellValue(), prospectusLink, doc);
 
                     parsingProspectusService.findVolatilitiesList(doc);
                     log.info(r+1 + " - 변동성:" + parsingProspectusService.findVolatilities(findProductSession(dCell.getStringCellValue()),doc));
@@ -174,7 +180,7 @@ public class ParsingExcelService {
                             .link(nCell.getStringCellValue())
                             .remarks(pCell.getStringCellValue())
                             .knockIn(findKnockIn(lCell.getStringCellValue()))
-                            .summaryInvestmentProspectusLink(findProspectusLink(findProductSession(dCell.getStringCellValue()), findIssuer(dCell.getStringCellValue())))
+                            .summaryInvestmentProspectusLink(prospectusLink)
                             .earlyRepaymentEvaluationDates(Optional.ofNullable(
                                             parsingProspectusService.findEarlyRepaymentEvaluationDates(
                                                     findProductSession(dCell.getStringCellValue()),

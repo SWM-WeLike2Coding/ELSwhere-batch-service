@@ -1,6 +1,7 @@
 package com.wl2c.elswherebatchservice.domain.product.service;
 
 import com.wl2c.elswherebatchservice.domain.product.model.MaturityEvaluationDateType;
+import com.wl2c.elswherebatchservice.domain.product.model.dto.ProspectusCorrectionReportMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
@@ -22,6 +23,8 @@ import java.util.regex.Pattern;
 @Slf4j
 public class ParsingProspectusService {
 
+    private final ProspectusCorrectionReportMessageSender prospectusCorrectionReportMessageSender;
+
     public Document fetchDocument(String url) throws IOException {
 
         int retries = 3;
@@ -42,6 +45,26 @@ public class ParsingProspectusService {
         }
 
         return null;
+    }
+
+    // 정정신고
+    public void findIsCorrectionReport(String name, String prospectusLink, Document document) throws IOException {
+        Elements pTags = document.select("p");
+
+        // p tag
+        for (Element pTag : pTags) {
+            if (pTag.text().contains("정 정 신 고") || pTag.text().contains("정 정 보 고") || pTag.text().contains("정정사항") || pTag.text().contains("정정대상")) {
+                ProspectusCorrectionReportMessage prospectusCorrectionReportMessage = ProspectusCorrectionReportMessage.builder()
+                        .productName(name)
+                        .prospectusLink(prospectusLink)
+                        .build();
+
+                prospectusCorrectionReportMessageSender.send("prospectus-correction-report-alert", prospectusCorrectionReportMessage);
+                log.warn("상품명 " + name + " : 투자설명서 정정신고된 상품");
+                break;
+            }
+        }
+
     }
 
     // 최초기준가격평가일(최초기준가격 결정일)
@@ -456,6 +479,8 @@ public class ParsingProspectusService {
                 }
 
                 Element table = pTag.nextElementSibling();
+                if (table == null)   continue;
+
                 if (table.tagName().equals("table")) {
                     Elements tds = table.select("td");
                     for (Element td : tds) {
@@ -602,6 +627,8 @@ public class ParsingProspectusService {
                 }
 
                 Element table = pTag.nextElementSibling();
+                if (table == null)   continue;
+
                 if (table.tagName().equals("table")) {
                     Elements tds = table.select("td");
                     for (Element td : tds) {

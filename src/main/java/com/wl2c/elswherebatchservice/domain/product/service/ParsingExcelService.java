@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wl2c.elswherebatchservice.domain.product.model.MaturityEvaluationDateType;
 import com.wl2c.elswherebatchservice.domain.product.model.ProductState;
 import com.wl2c.elswherebatchservice.domain.product.model.ProductType;
+import com.wl2c.elswherebatchservice.domain.product.model.dto.NewIssuerMessage;
+import com.wl2c.elswherebatchservice.domain.product.model.dto.NewTickerMessage;
 import com.wl2c.elswherebatchservice.domain.product.model.entity.*;
 import com.wl2c.elswherebatchservice.domain.product.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -53,13 +55,15 @@ public class ParsingExcelService {
     private final EarlyRepaymentEvaluationDatesRepository earlyRepaymentEvaluationDatesRepository;
 
     private final ParsingProspectusService parsingProspectusService;
+    private final NewTickerMessageSender newTickerMessageSender;
+    private final NewIssuerMessageSender newIssuerMessageSender;
 
     // 발행사 리스트
     private final List<String> issuers = List.of(
             "신한", "KB", "kb", "한화", "삼성", "미래에셋", "유안타", "키움",
                 "교보", "NH", "SK", "대신", "메리츠", "하나",
                 "현대차", "한국투자", "트루", "대신", "신영", "유진",
-                "하이투자", "비엔케이", "BNK", "IBK", "아이비케이", "DB"
+                "하이투자", "비엔케이", "BNK", "IBK", "아이비케이", "DB", "iM"
             );
 
     // No-Knock-In 키워드 리스트
@@ -143,9 +147,18 @@ public class ParsingExcelService {
                 // 이미 존재하면 패스
                 if (productRepository.findProductByName(dCell.getStringCellValue()).isPresent())    continue;
 
-                if (findProspectusLink(findProductSession(dCell.getStringCellValue()), findIssuer(dCell.getStringCellValue())) != null) {
+                // 저장되어 있지 않은 새로운 발행회사라면 알림 후, 패스
+                if (!findIssuer(bCell.getStringCellValue(), dCell.getStringCellValue())) continue;
 
-                    Document doc = parsingProspectusService.fetchDocument(findProspectusLink(findProductSession(dCell.getStringCellValue()), findIssuer(dCell.getStringCellValue())));
+                // 투자설명서 링크
+                String prospectusLink = findProspectusLink(findProductSession(dCell.getStringCellValue()), findIssuer(dCell.getStringCellValue()));
+
+                if (prospectusLink != null) {
+
+                    Document doc = parsingProspectusService.fetchDocument(prospectusLink);
+
+                    // 정정신고한 투자설명서라면 알림
+                    parsingProspectusService.findIsCorrectionReport(dCell.getStringCellValue(), prospectusLink, doc);
 
                     parsingProspectusService.findVolatilitiesList(doc);
                     log.info(r+1 + " - 변동성:" + parsingProspectusService.findVolatilities(findProductSession(dCell.getStringCellValue()),doc));
@@ -167,7 +180,7 @@ public class ParsingExcelService {
                             .link(nCell.getStringCellValue())
                             .remarks(pCell.getStringCellValue())
                             .knockIn(findKnockIn(lCell.getStringCellValue()))
-                            .summaryInvestmentProspectusLink(findProspectusLink(findProductSession(dCell.getStringCellValue()), findIssuer(dCell.getStringCellValue())))
+                            .summaryInvestmentProspectusLink(prospectusLink)
                             .earlyRepaymentEvaluationDates(Optional.ofNullable(
                                             parsingProspectusService.findEarlyRepaymentEvaluationDates(
                                                     findProductSession(dCell.getStringCellValue()),
@@ -187,7 +200,6 @@ public class ParsingExcelService {
                     String[] equities = eCell.getStringCellValue().split("<br/>");
                     String volatilites = parsingProspectusService.findVolatilities(findProductSession(dCell.getStringCellValue()), doc).get(0);
                     for (String equity : equities) {
-                        // TODO: 존재하지 않는 티커에 대해서, 알림 기능 필요
                         Optional<TickerSymbol> tickerSymbol = tickerSymbolRepository.findTickerSymbolByEquityName(equity);
                         ProductTickerSymbol productTickerSymbol;
 
@@ -199,6 +211,12 @@ public class ParsingExcelService {
                             productTickerSymbolRepository.save(productTickerSymbol);
                         } else {
                             log.warn(dCell + " : " + "기초자산 " +equity + " 에 대해서 Ticker가 존재하지 않음 업데이트 필요");
+                            NewTickerMessage newTickerMessage = NewTickerMessage.builder()
+                                    .productId(product.getId())
+                                    .productName(dCell.getStringCellValue())
+                                    .equity(equity)
+                                    .build();
+                            newTickerMessageSender.send("new-ticker-alert", newTickerMessage);
 
                             Optional<TickerSymbol> checkTickerSymbol = tickerSymbolRepository.findTickerSymbolByEquityNameAndTickerSymbol(equity, "NEED_TO_CHECK");
                             if (checkTickerSymbol.isPresent())    continue;
@@ -279,17 +297,15 @@ public class ParsingExcelService {
                     // 기초자산 db
                     String[] equities = eCell.getStringCellValue().split("<br/>");
                     for (String equity : equities) {
-                        // TODO: 존재하지 않는 티커에 대해서, 알림 기능 필요
                         Optional<TickerSymbol> tickerSymbol = tickerSymbolRepository.findTickerSymbolByEquityName(equity);
-                        ProductTickerSymbol productTickerSymbol;
-                        if (tickerSymbol.isPresent() && !Objects.equals(tickerSymbol.get().getTickerSymbol(), "NEED_TO_CHECK")) {
-                            productTickerSymbol = ProductTickerSymbol.builder()
-                                    .product(product)
-                                    .tickerSymbol(tickerSymbol.get())
-                                    .build();
-                            productTickerSymbolRepository.save(productTickerSymbol);
-                        } else {
+                        if (tickerSymbol.isEmpty()) {
                             log.warn(dCell + " : " + "기초자산 " +equity + " 에 대해서 Ticker가 존재하지 않음 업데이트 필요");
+                            NewTickerMessage newTickerMessage = NewTickerMessage.builder()
+                                    .productId(product.getId())
+                                    .productName(dCell.getStringCellValue())
+                                    .equity(equity)
+                                    .build();
+                            newTickerMessageSender.send("new-ticker-alert", newTickerMessage);
 
                             Optional<TickerSymbol> checkTickerSymbol = tickerSymbolRepository.findTickerSymbolByEquityNameAndTickerSymbol(equity, "NEED_TO_CHECK");
                             if (checkTickerSymbol.isPresent())    continue;
@@ -299,14 +315,6 @@ public class ParsingExcelService {
                                     .equityName(equity)
                                     .build();
                             tickerSymbolRepository.save(temporaryTickerSymbol);
-
-                            productTickerSymbol = ProductTickerSymbol.builder()
-                                    .product(product)
-                                    .tickerSymbol(temporaryTickerSymbol)
-                                    .build();
-                            productTickerSymbolRepository.save(productTickerSymbol);
-
-                            product.setInActiveProductState();
                         }
                     }
                 }
@@ -349,7 +357,32 @@ public class ParsingExcelService {
                 .filter(name::contains)
                 .findFirst();
 
-        return result.orElseThrow();
+        if (result.isEmpty()) {
+            return null;
+        }
+
+        return result.get();
+
+    }
+
+    private boolean findIssuer(String issuer, String name) {
+
+        // 단어가 포함되어 있는지 확인하고, 해당 단어를 반환
+        Optional<String> result = issuers.stream()
+                .filter(name::contains)
+                .findFirst();
+
+        if (result.isEmpty()) {
+            NewIssuerMessage newIssuerMessage = NewIssuerMessage.builder()
+                    .productName(name)
+                    .issuer(issuer)
+                    .build();
+            newIssuerMessageSender.send("new-issuer-alert", newIssuerMessage);
+            log.warn(issuer + " : " + "상품명 " + name + " 에 대한 발행회사명 추가 업데이트 필요");
+
+            return false;
+        }
+        return true;
 
     }
 

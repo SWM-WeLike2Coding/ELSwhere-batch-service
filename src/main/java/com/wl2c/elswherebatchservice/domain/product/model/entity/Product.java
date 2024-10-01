@@ -32,6 +32,8 @@ public class Product extends BaseEntity {
     @NotNull
     private String name;
 
+    private Integer issueNumber;
+
     @NotNull
     private String equities;
 
@@ -100,6 +102,7 @@ public class Product extends BaseEntity {
     @Builder
     private Product (@NonNull String issuer,
                      @NonNull String name,
+                     Integer issueNumber,
                      @NonNull String equities,
                      int equityCount,
                      @NonNull LocalDate issuedDate,
@@ -123,6 +126,7 @@ public class Product extends BaseEntity {
                      ProductState productState) {
         this.issuer = issuer;
         this.name = name;
+        this.issueNumber = issueNumber;
         this.equities = equities;
         this.equityCount = equityCount;
         this.knockIn = knockIn;

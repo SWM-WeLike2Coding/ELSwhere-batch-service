@@ -165,6 +165,7 @@ public class ParsingExcelService {
                     Product product = Product.builder()
                             .issuer(bCell.getStringCellValue())
                             .name(dCell.getStringCellValue())
+                            .issueNumber(Integer.valueOf(findIssueNumber(dCell.getStringCellValue())))
                             .equities(eCell.getStringCellValue().replace("<br/>", " / "))
                             .equityCount(eCell.getStringCellValue().split("<br/>").length)
                             .issuedDate(convertToLocalDate(fCell.getStringCellValue()))
@@ -276,6 +277,7 @@ public class ParsingExcelService {
                     Product product = Product.builder()
                             .issuer(bCell.getStringCellValue())
                             .name(dCell.getStringCellValue())
+                            .issueNumber(Integer.valueOf(findIssueNumber(dCell.getStringCellValue())))
                             .equities(eCell.getStringCellValue().replace("<br/>", " / "))
                             .equityCount(eCell.getStringCellValue().split("<br/>").length)
                             .issuedDate(convertToLocalDate(fCell.getStringCellValue()))
@@ -625,5 +627,20 @@ public class ParsingExcelService {
     private LocalDate convertToLocalDateFromKoreanFormat(String dateString) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy년 MM월 dd일");
         return LocalDate.parse(dateString, formatter);
+    }
+
+    private String findIssueNumber(String name) {
+        // 숫자를 추출하는 정규표현식 패턴 정의
+        Pattern pattern = Pattern.compile("\\s*제?\\s*(\\d+)\\s*[호회]?");
+
+        // 문자열에서 숫자를 추출
+        Matcher matcher = pattern.matcher(name);
+        if (matcher.find()) {
+            return matcher.group(1);
+        } else {
+            log.error("No issue number found in: " + name);
+        }
+
+        return null;
     }
 }

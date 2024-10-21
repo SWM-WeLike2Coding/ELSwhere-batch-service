@@ -48,6 +48,10 @@ public class ParsingExcelService {
     @Value("${file.krx.path}")
     private String krxPath;
 
+    // 발행사 리스트
+    @Value("#{'${issuers}'.split(', ')}")
+    private List<String> issuers;
+
     private final ProductRepository productRepository;
     private final TickerSymbolRepository tickerSymbolRepository;
     private final ProductTickerSymbolRepository productTickerSymbolRepository;
@@ -57,14 +61,6 @@ public class ParsingExcelService {
     private final ParsingProspectusService parsingProspectusService;
     private final NewTickerMessageSender newTickerMessageSender;
     private final NewIssuerMessageSender newIssuerMessageSender;
-
-    // 발행사 리스트
-    private final List<String> issuers = List.of(
-            "신한", "KB", "kb", "한화", "삼성", "미래에셋", "유안타", "키움",
-                "교보", "NH", "SK", "대신", "메리츠", "하나",
-                "현대차", "한국투자", "트루", "대신", "신영", "유진",
-                "하이투자", "비엔케이", "BNK", "IBK", "아이비케이", "DB", "iM", "아이엠"
-            );
 
     // No-Knock-In 키워드 리스트
     private final List<String> noKiKeywords = List.of(

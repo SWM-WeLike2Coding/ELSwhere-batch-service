@@ -3,6 +3,7 @@ package com.wl2c.elswherebatchservice.domain.product.model.entity;
 import com.wl2c.elswherebatchservice.domain.product.model.MaturityEvaluationDateType;
 import com.wl2c.elswherebatchservice.domain.product.model.ProductState;
 import com.wl2c.elswherebatchservice.domain.product.model.ProductType;
+import com.wl2c.elswherebatchservice.domain.product.model.UnderlyingAssetType;
 import com.wl2c.elswherebatchservice.global.base.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -73,6 +74,10 @@ public class Product extends BaseEntity {
     private ProductType type;
 
     @NotNull
+    @Enumerated(STRING)
+    private UnderlyingAssetType underlyingAssetType;
+
+    @NotNull
     private String productFullInfo;
 
     private String productInfo;
@@ -123,6 +128,7 @@ public class Product extends BaseEntity {
                      String volatilites,
                      LocalDate initialBasePriceEvaluationDate,
                      ProductType productType,
+                     UnderlyingAssetType underlyingAssetType,
                      ProductState productState) {
         this.issuer = issuer;
         this.name = name;
@@ -139,6 +145,7 @@ public class Product extends BaseEntity {
         this.subscriptionStartDate = subscriptionStartDate;
         this.subscriptionEndDate = subscriptionEndDate;
         this.type = productType;
+        this.underlyingAssetType = underlyingAssetType;
         this.productFullInfo = productFullInfo;
         this.productInfo = productInfo;
         this.link = link;

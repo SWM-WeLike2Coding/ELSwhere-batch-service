@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wl2c.elswherebatchservice.domain.product.model.MaturityEvaluationDateType;
 import com.wl2c.elswherebatchservice.domain.product.model.ProductState;
 import com.wl2c.elswherebatchservice.domain.product.model.ProductType;
+import com.wl2c.elswherebatchservice.domain.product.model.UnderlyingAssetType;
 import com.wl2c.elswherebatchservice.domain.product.model.dto.NewIssuerMessage;
 import com.wl2c.elswherebatchservice.domain.product.model.dto.NewTickerMessage;
 import com.wl2c.elswherebatchservice.domain.product.model.entity.*;
@@ -158,6 +159,30 @@ public class ParsingExcelService {
 
                     parsingProspectusService.findVolatilitiesList(doc);
                     log.info(r+1 + " - 변동성:" + parsingProspectusService.findVolatilities(findProductSession(dCell.getStringCellValue()),doc));
+
+                    // 기초자산 db
+                    String[] equities = eCell.getStringCellValue().split("<br/>");
+                    int equityCount = equities.length, productUnderlyingAssetScore = 0;
+                    for (String equity : equities) {
+                        Optional<TickerSymbol> tickerSymbol = tickerSymbolRepository.findTickerSymbolByEquityName(equity);
+                        if (tickerSymbol.isPresent() && !Objects.equals(tickerSymbol.get().getTickerSymbol(), "NEED_TO_CHECK")) {
+                            if (tickerSymbol.get().getUnderlyingAssetType().equals(UnderlyingAssetType.INDEX))
+                                productUnderlyingAssetScore++;
+                        } else {
+                            productUnderlyingAssetScore = -1;
+
+                            log.warn(dCell + " : " + "기초자산 " +equity + " 에 대해서 Ticker가 존재하지 않음 업데이트 필요");
+                            NewTickerMessage newTickerMessage = NewTickerMessage.builder()
+                                    .productName(dCell.getStringCellValue())
+                                    .equity(equity)
+                                    .build();
+                            newTickerMessageSender.send("new-ticker-alert", newTickerMessage);
+                        }
+                    }
+
+                    if (productUnderlyingAssetScore == -1)  continue;
+
+                    // 기초자산들이 정상적으로 존재하는 경우에 동작
                     Product product = Product.builder()
                             .issuer(bCell.getStringCellValue())
                             .name(dCell.getStringCellValue())
@@ -189,49 +214,19 @@ public class ParsingExcelService {
                             .volatilites(parsingProspectusService.findVolatilities(findProductSession(dCell.getStringCellValue()), doc).get(0))
                             .initialBasePriceEvaluationDate(parsingProspectusService.findInitialBasePriceEvaluationDate(bCell.getStringCellValue(), findProductSession(dCell.getStringCellValue()), doc))
                             .productType(findProductType(bCell.getStringCellValue(), lCell.getStringCellValue()))
+                            .underlyingAssetType(checkUnderlyingAssetType(productUnderlyingAssetScore, equityCount))
                             .productState(ProductState.ACTIVE)
                             .build();
                     productRepository.save(product);
 
-                    // 기초자산 db
-                    String[] equities = eCell.getStringCellValue().split("<br/>");
                     String volatilites = parsingProspectusService.findVolatilities(findProductSession(dCell.getStringCellValue()), doc).get(0);
                     for (String equity : equities) {
                         Optional<TickerSymbol> tickerSymbol = tickerSymbolRepository.findTickerSymbolByEquityName(equity);
-                        ProductTickerSymbol productTickerSymbol;
-
-                        if (tickerSymbol.isPresent() && !Objects.equals(tickerSymbol.get().getTickerSymbol(), "NEED_TO_CHECK")) {
-                            productTickerSymbol = ProductTickerSymbol.builder()
-                                    .product(product)
-                                    .tickerSymbol(tickerSymbol.get())
-                                    .build();
-                            productTickerSymbolRepository.save(productTickerSymbol);
-                        } else {
-                            log.warn(dCell + " : " + "기초자산 " +equity + " 에 대해서 Ticker가 존재하지 않음 업데이트 필요");
-                            NewTickerMessage newTickerMessage = NewTickerMessage.builder()
-                                    .productId(product.getId())
-                                    .productName(dCell.getStringCellValue())
-                                    .equity(equity)
-                                    .build();
-                            newTickerMessageSender.send("new-ticker-alert", newTickerMessage);
-
-                            Optional<TickerSymbol> checkTickerSymbol = tickerSymbolRepository.findTickerSymbolByEquityNameAndTickerSymbol(equity, "NEED_TO_CHECK");
-                            if (checkTickerSymbol.isPresent())    continue;
-
-                            TickerSymbol temporaryTickerSymbol = TickerSymbol.builder()
-                                    .tickerSymbol("NEED_TO_CHECK")
-                                    .equityName(equity)
-                                    .build();
-                            tickerSymbolRepository.save(temporaryTickerSymbol);
-
-                            productTickerSymbol = ProductTickerSymbol.builder()
-                                    .product(product)
-                                    .tickerSymbol(temporaryTickerSymbol)
-                                    .build();
-                            productTickerSymbolRepository.save(productTickerSymbol);
-
-                            product.setInActiveProductState();
-                        }
+                        ProductTickerSymbol productTickerSymbol = ProductTickerSymbol.builder()
+                                .product(product)
+                                .tickerSymbol(tickerSymbol.get())
+                                .build();
+                        productTickerSymbolRepository.save(productTickerSymbol);
 
                         if (volatilites != null) {
                             for (String volatility : volatilites.split(" / ")) {
@@ -270,6 +265,37 @@ public class ParsingExcelService {
                         }
                     }
                 } else {
+
+                    // 기초자산 db
+                    String[] equities = eCell.getStringCellValue().split("<br/>");
+                    int equityCount = equities.length, productUnderlyingAssetScore = 0;
+                    for (String equity : equities) {
+                        Optional<TickerSymbol> tickerSymbol = tickerSymbolRepository.findTickerSymbolByEquityName(equity);
+                        if (tickerSymbol.isPresent() && !Objects.equals(tickerSymbol.get().getTickerSymbol(), "NEED_TO_CHECK")) {
+                            if (tickerSymbol.get().getUnderlyingAssetType().equals(UnderlyingAssetType.INDEX))
+                                productUnderlyingAssetScore++;
+                        } else {
+                            productUnderlyingAssetScore = -1;
+
+                            log.warn(dCell + " : " + "기초자산 " + equity + " 에 대해서 Ticker가 존재하지 않음 업데이트 필요");
+                            NewTickerMessage newTickerMessage = NewTickerMessage.builder()
+                                    .productName(dCell.getStringCellValue())
+                                    .equity(equity)
+                                    .build();
+                            newTickerMessageSender.send("new-ticker-alert", newTickerMessage);
+
+                            Optional<TickerSymbol> checkTickerSymbol = tickerSymbolRepository.findTickerSymbolByEquityNameAndTickerSymbol(equity, "NEED_TO_CHECK");
+                            if (checkTickerSymbol.isPresent()) continue;
+
+                            TickerSymbol temporaryTickerSymbol = TickerSymbol.builder()
+                                    .tickerSymbol("NEED_TO_CHECK")
+                                    .equityName(equity)
+                                    .underlyingAssetType(UnderlyingAssetType.NEED_TO_CHECK)
+                                    .build();
+                            tickerSymbolRepository.save(temporaryTickerSymbol);
+                        }
+                    }
+
                     Product product = Product.builder()
                             .issuer(bCell.getStringCellValue())
                             .name(dCell.getStringCellValue())
@@ -288,33 +314,11 @@ public class ParsingExcelService {
                             .link(nCell.getStringCellValue())
                             .remarks(pCell.getStringCellValue())
                             .productType(findProductType(bCell.getStringCellValue(), lCell.getStringCellValue()))
+                            .underlyingAssetType(checkUnderlyingAssetType(productUnderlyingAssetScore, equityCount))
                             .productState(ProductState.INACTIVE)
                             .build();
                     productRepository.save(product);
 
-                    // 기초자산 db
-                    String[] equities = eCell.getStringCellValue().split("<br/>");
-                    for (String equity : equities) {
-                        Optional<TickerSymbol> tickerSymbol = tickerSymbolRepository.findTickerSymbolByEquityName(equity);
-                        if (tickerSymbol.isEmpty()) {
-                            log.warn(dCell + " : " + "기초자산 " +equity + " 에 대해서 Ticker가 존재하지 않음 업데이트 필요");
-                            NewTickerMessage newTickerMessage = NewTickerMessage.builder()
-                                    .productId(product.getId())
-                                    .productName(dCell.getStringCellValue())
-                                    .equity(equity)
-                                    .build();
-                            newTickerMessageSender.send("new-ticker-alert", newTickerMessage);
-
-                            Optional<TickerSymbol> checkTickerSymbol = tickerSymbolRepository.findTickerSymbolByEquityNameAndTickerSymbol(equity, "NEED_TO_CHECK");
-                            if (checkTickerSymbol.isPresent())    continue;
-
-                            TickerSymbol temporaryTickerSymbol = TickerSymbol.builder()
-                                    .tickerSymbol("NEED_TO_CHECK")
-                                    .equityName(equity)
-                                    .build();
-                            tickerSymbolRepository.save(temporaryTickerSymbol);
-                        }
-                    }
                 }
                 cntForSleep++;
             }
@@ -639,4 +643,26 @@ public class ParsingExcelService {
 
         return null;
     }
+
+    private UnderlyingAssetType checkUnderlyingAssetType(int score, int underlyingAssetCount) {
+        /**
+         * 각 기초자산에 대해서 지수형(INDEX)이면 score += 1
+         * TickerSymbol에 존재하지 않는 기초자산이라면 score = -1로 설정했음
+         *
+         *          개수  1   2   3
+         *  유형
+         *  INDEX        1   2   3
+         *  STOCK        0   0   0
+         *  MIX          x   1   1or2
+         */
+
+        if (score == underlyingAssetCount)
+            return UnderlyingAssetType.INDEX;
+        if (score == 0)
+            return UnderlyingAssetType.STOCK;
+        if ((score != -1) && (score < underlyingAssetCount))
+            return UnderlyingAssetType.MIX;
+        return UnderlyingAssetType.NEED_TO_CHECK;
+    }
+
 }

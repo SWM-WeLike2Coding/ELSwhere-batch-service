@@ -12,19 +12,14 @@ import lombok.ToString;
 public class NewTickerMessage {
 
     @NotNull
-    private Long productId;
-
-    @NotNull
     private String productName;
 
     @NotNull
     private String equity;
 
     @Builder
-    private NewTickerMessage(Long productId,
-                             String productName,
+    private NewTickerMessage(String productName,
                              String equity) {
-        this.productId = productId;
         this.productName = productName;
         this.equity = equity;
     }
